@@ -60,21 +60,34 @@ int main(){
         }
 
         if (pids[i] == 0) {
-			printf("fork 성공\n");
-            close(pipes[i][0]);
+            // 자식 프로세스
+            // 자식 프로세스에서 사용하지 않는 모든 파이프 닫기
+            for (int j = 0; j < N; j++) {
+                if (i != j) {
+                    close(pipes[j][0]);
+                    close(pipes[j][1]);
+                }
+            }
+            close(pipes[i][0]); // 자식은 쓰기만 허용
 
             double child_res;
             sinx_taylor(1, 10, &x[i], &child_res); 
 
             write(pipes[i][1], &child_res, sizeof(double));
-            close(pipes[i][1]);
+            close(pipes[i][1]); // 쓰기 끝나면 파이프 닫기
 
-			return 0;
+            exit(0); // 자식 프로세스 종료
         }
     }
 
+    // 부모 프로세스
+    // 부모는 읽기만 허용
     for (int i = 0; i < N; i++) {
         close(pipes[i][1]);
+    }
+
+    // 모든 자식 프로세스가 종료될 때까지 기다리고, 파이프로부터 결과 읽기
+    for (int i = 0; i < N; i++) {
         waitpid(pids[i], NULL, 0);
         read(pipes[i][0], &res[i], sizeof(double));
         close(pipes[i][0]);
